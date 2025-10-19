@@ -9,6 +9,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import WebSocket, { WebSocketServer } from "ws";
 import cors from "cors";
+import { log } from "console";
 
 const app = express();
 const httpServer = createServer(app); // create HTTP server wrapping Express
@@ -24,11 +25,24 @@ const wss = new WebSocketServer({
 });
 
 wss.on("connection", function connection(ws) {
-  console.log("were connected bishhh");
-  wss.on("message", function message(data) {
-    console.log(data);
+  // ws.send(
+  //   JSON.stringify({
+  //     position: [3, 3],
+  //     mark: "x",
+  //   })
+  // );
+  console.log("new client connected bishhh");
+
+  ws.on("message", function message(data) {
+    console.log(JSON.parse(data));
+    const i = JSON.parse(data);
+    wss.clients.forEach((cli) => cli.send(JSON.stringify(i)));
   });
-});
+
+  ws.on("close", () => {
+    console.log("connection closed");
+  });
+})
 
 app.use(express.json());
 app.use(
