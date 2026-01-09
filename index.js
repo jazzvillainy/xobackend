@@ -5,7 +5,7 @@ import express from "express";
 const app = express();
 const httpServer = createServer(app);
 
-const wss = new WebSocketServer({ port: 4001, host: HOST });
+const wss = new WebSocketServer({ port: 4001});
 
 // roomId -> Set<WebSocket>
 const rooms = new Map();
