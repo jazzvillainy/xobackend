@@ -1,68 +1,64 @@
-import express from "express";
-import router from "./user/routes/auth.js";
-import passport from "passport";
-import "./strategy/localStrategy.js";
-import session from "express-session";
-import { checkSchema } from "express-validator";
-import { validationSchema } from "./utils/validationSchema.js";
-import { createServer } from "http";
-import { Server } from "socket.io";
 import WebSocket, { WebSocketServer } from "ws";
-import cors from "cors";
-import { log } from "console";
+import { createServer } from "http";
+import express from "express";
 
 const app = express();
-const httpServer = createServer(app); // create HTTP server wrapping Express
-const io = new Server(httpServer, {
-  cors: {
-    origin: "*", // TODO: lock this down later
-  },
-});
-app.use(cors());
+const httpServer = createServer(app);
+const HOST = "10.155.242.21";
+const wss = new WebSocketServer({ port: 4001, host: HOST });
 
-const wss = new WebSocketServer({
-  port: 4001,
-});
+// roomId -> Set<WebSocket>
+const rooms = new Map();
 
-wss.on("connection", function connection(ws) {
-  // ws.send(
-  //   JSON.stringify({
-  //     position: [3, 3],
-  //     mark: "x",
-  //   })
-  // );
-  console.log("new client connected bishhh");
+wss.on("connection", (ws, req) => {
+  // Parse ?room=xyz
+  const url = new URL(req.url, `http://${HOST}:4001`);
+  const roomId = url.searchParams.get("room");
 
-  ws.on("message", function message(data) {
-    console.log(JSON.parse(data));
-    const i = JSON.parse(data);
-    wss.clients.forEach((cli) => cli.send(JSON.stringify(i)));
+  if (!roomId) {
+    ws.close(1008, "Missing room id");
+    return;
+  }
+
+  console.log(`Client joined room: ${roomId}`);
+
+  // Add socket to room
+  if (!rooms.has(roomId)) {
+    rooms.set(roomId, new Set());
+  }
+  rooms.get(roomId).add(ws);
+
+  ws.on("message", (data) => {
+    let payload;
+    try {
+      payload = JSON.parse(data);
+    } catch {
+      return;
+    }
+
+    // Send to everyone else in the same room
+    for (const client of rooms.get(roomId)) {
+      if (client !== ws && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(payload));
+      }
+    }
   });
 
   ws.on("close", () => {
-    console.log("connection closed");
+    console.log(`Client left room: ${roomId}`);
+
+    const room = rooms.get(roomId);
+    if (!room) return;
+
+    room.delete(ws);
+
+    // Cleanup empty rooms
+    if (room.size === 0) {
+      rooms.delete(roomId);
+    }
   });
-})
-
-app.use(express.json());
-app.use(
-  session({
-    secret: "31331311",
-    saveUninitialized: false,
-    resave: false,
-  })
-);
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Routes
-app.get("/", (req, res) => {
-  res.cookie("username", "Crescent");
-  res.status(200).send("<>Hello</>");
 });
-app.use("/auth", router);
 
-// Start servers
-httpServer.listen(4000, () => {
+httpServer.listen(4000, HOST, () => {
   console.log("HTTP server running on port 4000");
 });
