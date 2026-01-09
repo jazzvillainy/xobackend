@@ -3,16 +3,17 @@ import { createServer } from "http";
 import express from "express";
 
 const app = express();
-const httpServer = createServer(app);
+const server = createServer(app);
 
-const wss = new WebSocketServer({ port: 4001});
+// Attach WebSocket server to the HTTP server
+const wss = new WebSocketServer({ server });
 
 // roomId -> Set<WebSocket>
 const rooms = new Map();
 
 wss.on("connection", (ws, req) => {
-  // Parse ?room=xyz
-  const url = new URL(req.url, `http://localhost:4001`);
+  // Use the incoming Host header (works in prod & local)
+  const url = new URL(req.url, `http://${req.headers.host}`);
   const roomId = url.searchParams.get("room");
 
   if (!roomId) {
@@ -22,7 +23,6 @@ wss.on("connection", (ws, req) => {
 
   console.log(`Client joined room: ${roomId}`);
 
-  // Add socket to room
   if (!rooms.has(roomId)) {
     rooms.set(roomId, new Set());
   }
@@ -31,12 +31,11 @@ wss.on("connection", (ws, req) => {
   ws.on("message", (data) => {
     let payload;
     try {
-      payload = JSON.parse(data);
+      payload = JSON.parse(data.toString());
     } catch {
       return;
     }
 
-    // Send to everyone else in the same room
     for (const client of rooms.get(roomId)) {
       if (client !== ws && client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify(payload));
@@ -51,14 +50,12 @@ wss.on("connection", (ws, req) => {
     if (!room) return;
 
     room.delete(ws);
-
-    // Cleanup empty rooms
-    if (room.size === 0) {
-      rooms.delete(roomId);
-    }
+    if (room.size === 0) rooms.delete(roomId);
   });
 });
 
-httpServer.listen(4000, () => {
-  console.log("HTTP server running on port 4000");
+const PORT = process.env.PORT || 4000;
+
+server.listen(PORT, () => {
+  console.log(`HTTP + WS server running on port ${PORT}`);
 });
