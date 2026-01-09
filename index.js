@@ -4,7 +4,7 @@ import express from "express";
 
 const app = express();
 const httpServer = createServer(app);
-const HOST = "10.155.242.21";
+
 const wss = new WebSocketServer({ port: 4001, host: HOST });
 
 // roomId -> Set<WebSocket>
@@ -12,7 +12,7 @@ const rooms = new Map();
 
 wss.on("connection", (ws, req) => {
   // Parse ?room=xyz
-  const url = new URL(req.url, `http://${HOST}:4001`);
+  const url = new URL(req.url, `http://localhost:4001`);
   const roomId = url.searchParams.get("room");
 
   if (!roomId) {
@@ -59,6 +59,6 @@ wss.on("connection", (ws, req) => {
   });
 });
 
-httpServer.listen(4000, HOST, () => {
+httpServer.listen(4000, () => {
   console.log("HTTP server running on port 4000");
 });
