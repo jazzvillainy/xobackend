@@ -1,6 +1,7 @@
 import WebSocket, { WebSocketServer } from "ws";
 import { createServer } from "http";
 import express from "express";
+import authRoutes from "./user/routes/auth";
 
 const app = express();
 const server = createServer(app);
@@ -10,6 +11,8 @@ const wss = new WebSocketServer({ server });
 
 // roomId -> Set<WebSocket>
 const rooms = new Map();
+
+app.use("/auth", authRoutes);
 
 wss.on("connection", (ws, req) => {
   // Use the incoming Host header (works in prod & local)
