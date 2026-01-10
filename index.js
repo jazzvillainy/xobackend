@@ -1,7 +1,7 @@
 import WebSocket, { WebSocketServer } from "ws";
 import { createServer } from "http";
 import express from "express";
-import authRoutes from "./user/routes/auth";
+import authRoutes from "./user/routes/auth.js";
 
 const app = express();
 const server = createServer(app);
